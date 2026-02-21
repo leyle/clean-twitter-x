@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Clean Twitter/X - Focus Mode
-// @namespace    https://github.com/axel/clean-twitter
+// @namespace    https://github.com/leyle/clean-twitter-x
 // @version      1.5.0
 // @description  Hide sidebars on Twitter/X and expand the main content for distraction-free reading.
 // @author       Axel
