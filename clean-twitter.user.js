@@ -1,12 +1,15 @@
 // ==UserScript==
 // @name         Clean Twitter/X - Focus Mode
 // @namespace    https://github.com/leyle/clean-twitter-x
-// @version      1.5.0
+// @version      1.6.0
 // @description  Hide sidebars on Twitter/X and expand the main content for distraction-free reading.
 // @author       Axel
 // @match        https://twitter.com/*
 // @match        https://x.com/*
 // @grant        GM_addStyle
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_registerMenuCommand
 // @run-at       document-start
 // ==/UserScript==
 
@@ -14,7 +17,15 @@
   'use strict';
 
   // ── Configuration ──────────────────────────────────────────────────────
-  const MAIN_MAX_WIDTH = '900px';
+  const MAIN_MAX_WIDTH = '800px';
+  const hideLeftSidebar = GM_getValue('hideLeftSidebar', true);
+
+  // ── Settings Menu ──────────────────────────────────────────────────────
+  function toggleLeftSidebar() {
+    GM_setValue('hideLeftSidebar', !hideLeftSidebar);
+    location.reload();
+  }
+  GM_registerMenuCommand(`${hideLeftSidebar ? 'Show' : 'Hide'} Left Sidebar on Feed`, toggleLeftSidebar);
 
   // ── Page-type helpers ──────────────────────────────────────────────────
   const DETAIL_CLASS = 'ct-detail-page';
@@ -25,7 +36,7 @@
   }
 
   // ── CSS ────────────────────────────────────────────────────────────────
-  GM_addStyle(`
+  let css = `
     /* ================================================================
        SHARED — applies on ALL pages (FEED + DETAIL)
        ================================================================ */
@@ -33,21 +44,6 @@
     /* Always hide the RIGHT sidebar */
     div[data-testid="sidebarColumn"] {
       display: none !important;
-    }
-
-    /* Wrap header and main in a horizontally centered layout.
-       We then apply a negative left margin on the wrapper to offset 
-       the width of the left sidebar (~275px). Half of 275px is 137.5px.
-       This drags the entire block leftward, placing the feed exactly in the center. */
-    body.${FEED_CLASS} div:has(> header[role="banner"]):has(> main[role="main"]) {
-      justify-content: center !important;
-      margin-left: -137.5px !important;
-    }
-
-    /* Stop left sidebar from stretching to take empty space */
-    body.${FEED_CLASS} header[role="banner"] {
-      flex-grow: 0 !important;
-      width: 275px !important; /* Lock the left sidebar to its typical max width */
     }
 
     /* Cap the entire main structure to our desired width. */
@@ -84,7 +80,43 @@
     body.${DETAIL_CLASS} main[role="main"] {
       margin: 0 auto !important;
     }
-  `);
+  `;
+
+  if (hideLeftSidebar) {
+    css += `
+      /* ================================================================
+         FEED PAGE: Left Sidebar Hidden
+         ================================================================ */
+      body.${FEED_CLASS} header[role="banner"] {
+        display: none !important;
+      }
+      body.${FEED_CLASS} main[role="main"] {
+        margin: 0 auto !important;
+      }
+    `;
+  } else {
+    css += `
+      /* ================================================================
+         FEED PAGE: Left Sidebar Visible
+         ================================================================ */
+      /* Wrap header and main in a horizontally centered layout.
+         We then apply a negative left margin on the wrapper to offset 
+         the width of the left sidebar (~275px). Half of 275px is 137.5px.
+         This drags the entire block leftward, placing the feed exactly in the center. */
+      body.${FEED_CLASS} div:has(> header[role="banner"]):has(> main[role="main"]) {
+        justify-content: center !important;
+        margin-left: -137.5px !important;
+      }
+
+      /* Stop left sidebar from stretching to take empty space */
+      body.${FEED_CLASS} header[role="banner"] {
+        flex-grow: 0 !important;
+        width: 275px !important; /* Lock the left sidebar to its typical max width */
+      }
+    `;
+  }
+
+  GM_addStyle(css);
 
   // ── JavaScript: widen parent chain ─────────────────────────────────────
   //  Since CSS sets the outer bounds, we just force the inner React wrappers
@@ -100,8 +132,8 @@
 
     const detail = isDetailPage();
 
-    // Center the parent flex container (JS fallback for CSS :has) ONLY on feed pages
-    if (!detail && header && header.parentElement && header.parentElement.tagName === 'DIV') {
+    // Center the parent flex container (JS fallback for CSS :has) ONLY on feed pages with left sidebar visible
+    if (!hideLeftSidebar && !detail && header && header.parentElement && header.parentElement.tagName === 'DIV') {
       if (!header.parentElement.getAttribute('data-ct-wrapper')) {
         header.parentElement.style.setProperty('justify-content', 'center', 'important');
         header.parentElement.style.setProperty('margin-left', '-137.5px', 'important');
