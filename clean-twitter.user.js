@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Clean Twitter/X - Focus Mode
 // @namespace    https://github.com/leyle/clean-twitter-x
-// @version      1.6.0
+// @version      1.7.0
 // @description  Hide sidebars on Twitter/X and expand the main content for distraction-free reading.
 // @author       Axel
 // @match        https://twitter.com/*
@@ -18,14 +18,45 @@
 
   // ── Configuration ──────────────────────────────────────────────────────
   const MAIN_MAX_WIDTH = '800px';
+  const DEFAULT_TWEET_FONT_SIZE = 18;
+  const MIN_TWEET_FONT_SIZE = 12;
+  const MAX_TWEET_FONT_SIZE = 30;
   const hideLeftSidebar = GM_getValue('hideLeftSidebar', true);
+  const tweetFontSize = sanitizeFontSize(
+    GM_getValue('tweetFontSize', DEFAULT_TWEET_FONT_SIZE)
+  );
 
   // ── Settings Menu ──────────────────────────────────────────────────────
   function toggleLeftSidebar() {
     GM_setValue('hideLeftSidebar', !hideLeftSidebar);
     location.reload();
   }
+
+  function sanitizeFontSize(value) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed)) return DEFAULT_TWEET_FONT_SIZE;
+    return Math.max(MIN_TWEET_FONT_SIZE, Math.min(MAX_TWEET_FONT_SIZE, parsed));
+  }
+
+  function setTweetFontSize() {
+    const input = window.prompt(
+      `Set tweet font size in px (${MIN_TWEET_FONT_SIZE}-${MAX_TWEET_FONT_SIZE})`,
+      String(tweetFontSize)
+    );
+    if (input === null) return;
+    const nextSize = sanitizeFontSize(input);
+    GM_setValue('tweetFontSize', nextSize);
+    location.reload();
+  }
+
+  function resetTweetFontSize() {
+    GM_setValue('tweetFontSize', DEFAULT_TWEET_FONT_SIZE);
+    location.reload();
+  }
+
   GM_registerMenuCommand(`${hideLeftSidebar ? 'Show' : 'Hide'} Left Sidebar on Feed`, toggleLeftSidebar);
+  GM_registerMenuCommand(`Set Tweet Font Size (${tweetFontSize}px)`, setTweetFontSize);
+  GM_registerMenuCommand(`Reset Tweet Font Size (${DEFAULT_TWEET_FONT_SIZE}px)`, resetTweetFontSize);
 
   // ── Page-type helpers ──────────────────────────────────────────────────
   const DETAIL_CLASS = 'ct-detail-page';
@@ -67,6 +98,12 @@
     body[class*="ct-"] div[data-testid="primaryColumn"] > div > div > div,
     body[class*="ct-"] div[data-testid="primaryColumn"] > div > div > div > div {
       max-width: 100% !important;
+    }
+
+    /* Tweet/reply text size setting */
+    body[class*="ct-"] article [data-testid="tweetText"] {
+      font-size: ${tweetFontSize}px !important;
+      line-height: 1.45 !important;
     }
 
     /* ================================================================
